@@ -1,50 +1,30 @@
--- Lemon Hub (Canvas GUI)
+-- Lemon Hub (All Features)
 -- Load via: loadstring(game:HttpGet("URL"))()
-
---[[
-   WARNING:
-   This script requires loadstring + HttpGet.
-   This will NOT run in standard Roblox Studio.
---]]
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
+local camera = workspace.CurrentCamera
 
 -- ===== CONFIG =====
 local config = {
     SpeedBoost = false,
     SpeedValue = 50,
+    Fly = false,
+    FlySpeed = 50,
     SpinBot = false,
     SpinSpeed = 10,
     Galaxy = false,
-    Keybind = Enum.KeyCode.RightShift
+    ESP = false,
+    Aimbot = false,
+    AimFOV = 60,
+    AimSmooth = 0.25,
+    Teleport = false,
+    AutoFarm = false
 }
-
--- ===== SAVE / LOAD =====
-local function saveConfig()
-    local data = HttpService:JSONEncode(config)
-    pcall(function()
-        writefile and writefile("LemonHubConfig.json", data)
-    end)
-end
-
-local function loadConfig()
-    pcall(function()
-        if readfile then
-            local data = readfile("LemonHubConfig.json")
-            config = HttpService:JSONDecode(data)
-        end
-    end)
-end
-
-loadConfig()
 
 -- ===== UI =====
 local LemonHub = Instance.new("ScreenGui")
@@ -72,19 +52,6 @@ topBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 topBar.BorderSizePixel = 0
 topBar.Parent = canvas
 
-local topCorner = Instance.new("UICorner")
-topCorner.CornerRadius = UDim.new(0, 15)
-topCorner.Parent = topBar
-
--- Gradient
-local gradient = Instance.new("UIGradient")
-gradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 140, 0)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 0))
-})
-gradient.Rotation = 90
-gradient.Parent = topBar
-
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(0, 300, 0, 40)
 title.Position = UDim2.new(0, 20, 0, 10)
@@ -94,16 +61,6 @@ title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
 title.Parent = topBar
-
-local subtitle = Instance.new("TextLabel")
-subtitle.Size = UDim2.new(0, 300, 0, 20)
-subtitle.Position = UDim2.new(0, 20, 0, 40)
-subtitle.BackgroundTransparency = 1
-subtitle.Text = "Modern UI • Smooth animations"
-subtitle.TextColor3 = Color3.fromRGB(230, 230, 255)
-subtitle.TextScaled = true
-subtitle.Font = Enum.Font.Gotham
-subtitle.Parent = topBar
 
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 60, 0, 30)
@@ -131,10 +88,6 @@ sideMenu.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
 sideMenu.BorderSizePixel = 0
 sideMenu.Parent = canvas
 
-local sideCorner = Instance.new("UICorner")
-sideCorner.CornerRadius = UDim.new(0, 15)
-sideCorner.Parent = sideMenu
-
 local menuLayout = Instance.new("UIListLayout")
 menuLayout.Padding = UDim.new(0, 10)
 menuLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -148,22 +101,6 @@ menuTitle.TextColor3 = Color3.fromRGB(200,200,255)
 menuTitle.TextScaled = true
 menuTitle.Font = Enum.Font.GothamBold
 menuTitle.Parent = sideMenu
-
--- Search Bar
-local searchBox = Instance.new("TextBox")
-searchBox.Size = UDim2.new(1, -20, 0, 35)
-searchBox.Position = UDim2.new(0, 10, 0, 420)
-searchBox.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-searchBox.PlaceholderText = "Search..."
-searchBox.Text = ""
-searchBox.TextColor3 = Color3.fromRGB(255,255,255)
-searchBox.TextScaled = true
-searchBox.Font = Enum.Font.Gotham
-searchBox.Parent = sideMenu
-
-local searchCorner = Instance.new("UICorner")
-searchCorner.CornerRadius = UDim.new(0, 10)
-searchCorner.Parent = searchBox
 
 -- Content
 local content = Instance.new("Frame")
@@ -190,7 +127,7 @@ local function createPage(name)
 end
 
 local function setPage(name)
-    for k,v in pairs(pages) do
+    for _,v in pairs(pages) do
         v.Visible = false
     end
     if pages[name] then
@@ -216,12 +153,10 @@ local function createTab(name)
     return btn
 end
 
--- Create pages
 local pageMain = createPage("Main")
 local pageMisc = createPage("Misc")
 local pageSettings = createPage("Settings")
 
--- Create tabs
 local tabMain = createTab("Main")
 local tabMisc = createTab("Misc")
 local tabSettings = createTab("Settings")
@@ -238,8 +173,8 @@ end)
 
 setPage("Main")
 
--- Content helper functions
-local function createToggle(parent, text, state, callback)
+-- Helpers
+local function createToggle(parent, text, default, callback)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(1, -20, 0, 40)
     frame.Position = UDim2.new(0, 10, 0, 0)
@@ -258,8 +193,8 @@ local function createToggle(parent, text, state, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.25, 0, 0.6, 0)
     btn.Position = UDim2.new(0.72, 0, 0.2, 0)
-    btn.BackgroundColor3 = state and Color3.fromRGB(120, 220, 120) or Color3.fromRGB(50, 50, 70)
-    btn.Text = state and "ON" or "OFF"
+    btn.BackgroundColor3 = default and Color3.fromRGB(120, 220, 120) or Color3.fromRGB(50, 50, 70)
+    btn.Text = default and "ON" or "OFF"
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.Font = Enum.Font.GothamBold
     btn.TextScaled = true
@@ -269,6 +204,7 @@ local function createToggle(parent, text, state, callback)
     corner.CornerRadius = UDim.new(0, 10)
     corner.Parent = btn
 
+    local state = default
     btn.MouseButton1Click:Connect(function()
         state = not state
         btn.Text = state and "ON" or "OFF"
@@ -300,7 +236,7 @@ local function createSlider(parent, text, min, max, default, callback)
     sliderBg.Parent = frame
 
     local sliderFill = Instance.new("Frame")
-    sliderFill.Size = UDim2.new((default-min)/(max-min), 0, 1, 0)
+    sliderFill.Size = UDim2.new((default - min)/(max - min), 0, 1, 0)
     sliderFill.BackgroundColor3 = Color3.fromRGB(120, 220, 120)
     sliderFill.Parent = sliderBg
 
@@ -359,11 +295,11 @@ settingsLayout.Padding = UDim.new(0, 10)
 settingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
 settingsLayout.Parent = pageSettings
 
--- Main Page
-createToggle(pageMain, "Speed Boost", config.SpeedBoost, function(state)
+-- ========= MAIN PAGE FEATURES =========
+-- Speed Boost
+createToggle(pageMain, "Speed Boost", false, function(state)
     config.SpeedBoost = state
     humanoid.WalkSpeed = state and config.SpeedValue or 16
-    saveConfig()
 end)
 
 createSlider(pageMain, "Speed Value", 16, 100, config.SpeedValue, function(val)
@@ -371,48 +307,237 @@ createSlider(pageMain, "Speed Value", 16, 100, config.SpeedValue, function(val)
     if config.SpeedBoost then
         humanoid.WalkSpeed = val
     end
-    saveConfig()
 end)
 
-local spinEnabled = config.SpinBot
-local spinSpeed = config.SpinSpeed
+-- Fly
+local flying = false
+local flyBodyVelocity
 
-createToggle(pageMain, "Spin Bot", config.SpinBot, function(state)
+createToggle(pageMain, "Fly", false, function(state)
+    flying = state
+    config.Fly = state
+
+    if state then
+        flyBodyVelocity = Instance.new("BodyVelocity")
+        flyBodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        flyBodyVelocity.Parent = character.PrimaryPart
+    else
+        if flyBodyVelocity then
+            flyBodyVelocity:Destroy()
+            flyBodyVelocity = nil
+        end
+    end
+end)
+
+createSlider(pageMain, "Fly Speed", 10, 200, config.FlySpeed, function(val)
+    config.FlySpeed = val
+end)
+
+-- Spin Bot
+local spinEnabled = false
+local spinSpeed = 10
+
+createToggle(pageMain, "Spin Bot", false, function(state)
     spinEnabled = state
     config.SpinBot = state
-    saveConfig()
 end)
 
-createSlider(pageMain, "Spin Speed", 1, 40, config.SpinSpeed, function(val)
+createSlider(pageMain, "Spin Speed", 1, 40, spinSpeed, function(val)
     spinSpeed = val
     config.SpinSpeed = val
-    saveConfig()
 end)
 
 RunService.RenderStepped:Connect(function()
     if spinEnabled and character.PrimaryPart then
         character:SetPrimaryPartCFrame(character.PrimaryPart.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0))
     end
+
+    if flying and character.PrimaryPart then
+        local move = Vector3.new(0,0,0)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            move = move + camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            move = move - camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            move = move - camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            move = move + camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            move = move + Vector3.new(0,1,0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            move = move - Vector3.new(0,1,0)
+        end
+
+        flyBodyVelocity.Velocity = move.Unit * config.FlySpeed
+    end
 end)
 
--- Misc Page
-createToggle(pageMisc, "Galaxy Mode", config.Galaxy, function(state)
+-- ========= MISC PAGE FEATURES =========
+-- Galaxy Mode
+createToggle(pageMisc, "Galaxy Mode", false, function(state)
     config.Galaxy = state
     game.Lighting.Ambient = state and Color3.fromRGB(120, 80, 255) or Color3.fromRGB(255, 255, 255)
-    saveConfig()
 end)
 
--- Settings Page
-createToggle(pageSettings, "Save Config", true, function(state)
+-- ESP
+local espFolder = Instance.new("Folder")
+espFolder.Name = "ESP"
+espFolder.Parent = LemonHub
+
+local function createESP(plr)
+    local esp = Instance.new("BillboardGui")
+    esp.Name = "ESP_"..plr.Name
+    esp.Size = UDim2.new(0, 200, 0, 50)
+    esp.Adornee = plr.Character and plr.Character:FindFirstChild("Head")
+    esp.AlwaysOnTop = true
+    esp.Parent = espFolder
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = plr.Name
+    label.TextColor3 = Color3.fromRGB(255, 255, 0)
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.Parent = esp
+
+    return esp
+end
+
+local espList = {}
+
+createToggle(pageMisc, "ESP", false, function(state)
+    config.ESP = state
+
     if state then
-        saveConfig()
+        for _,plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character and plr.Character:FindFirstChild("Head") then
+                espList[plr.Name] = createESP(plr)
+            end
+        end
+    else
+        for _,gui in pairs(espFolder:GetChildren()) do
+            gui:Destroy()
+        end
+        espList = {}
+    end
+end)
+
+Players.PlayerAdded:Connect(function(plr)
+    if config.ESP then
+        espList[plr.Name] = createESP(plr)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+    if espList[plr.Name] then
+        espList[plr.Name]:Destroy()
+        espList[plr.Name] = nil
+    end
+end)
+
+-- Aimbot
+local function getClosestPlayer()
+    local closest, closestDist = nil, math.huge
+
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("Head") then
+            local pos, onScreen = camera:WorldToViewportPoint(plr.Character.Head.Position)
+            if onScreen then
+                local mousePos = UserInputService:GetMouseLocation()
+                local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(mousePos.X, mousePos.Y)).Magnitude
+                if dist < closestDist and dist <= config.AimFOV then
+                    closestDist = dist
+                    closest = plr
+                end
+            end
+        end
+    end
+
+    return closest
+end
+
+local aimLock = false
+
+createToggle(pageMisc, "Aimbot", false, function(state)
+    config.Aimbot = state
+    aimLock = state
+end)
+
+createSlider(pageMisc, "Aim FOV", 10, 200, config.AimFOV, function(val)
+    config.AimFOV = val
+end)
+
+createSlider(pageMisc, "Aim Smooth", 0, 1, config.AimSmooth, function(val)
+    config.AimSmooth = val
+end)
+
+RunService.RenderStepped:Connect(function()
+    if aimLock then
+        local target = getClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local headPos = target.Character.Head.Position
+            local newCFrame = CFrame.new(camera.CFrame.Position, headPos)
+            camera.CFrame = camera.CFrame:Lerp(newCFrame, config.AimSmooth)
+        end
+    end
+end)
+
+-- Teleport to player
+createToggle(pageSettings, "Teleport Mode", false, function(state)
+    config.Teleport = state
+end)
+
+createToggle(pageSettings, "Auto Farm", false, function(state)
+    config.AutoFarm = state
+end)
+
+RunService.RenderStepped:Connect(function()
+    if config.Teleport then
+        -- Teleport to nearest player
+        local closest, dist = nil, math.huge
+        for _,plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local d = (player.Character.HumanoidRootPart.Position - plr.Character.HumanoidRootPart.Position).Magnitude
+                if d < dist then
+                    dist = d
+                    closest = plr
+                end
+            end
+        end
+        if closest and closest.Character then
+            player.Character.HumanoidRootPart.CFrame = closest.Character.HumanoidRootPart.CFrame
+        end
+    end
+
+    if config.AutoFarm then
+        -- Simple auto farm: move to nearest player and punch (if tool exists)
+        local closest, dist = nil, math.huge
+        for _,plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local d = (player.Character.HumanoidRootPart.Position - plr.Character.HumanoidRootPart.Position).Magnitude
+                if d < dist then
+                    dist = d
+                    closest = plr
+                end
+            end
+        end
+
+        if closest and closest.Character then
+            player.Character.HumanoidRootPart.CFrame = closest.Character.HumanoidRootPart.CFrame * CFrame.new(2,0,0)
+        end
     end
 end)
 
 -- Toggle visibility
 UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == config.Keybind then
+    if input.KeyCode == Enum.KeyCode.RightShift then
         LemonHub.Enabled = not LemonHub.Enabled
     end
 end)
-
