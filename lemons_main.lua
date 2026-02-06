@@ -1,11 +1,3 @@
--- Lemon Hub (Canvas GUI)
--- Load via: loadstring(game:HttpGet("URL"))()
-
---[[
-   WARNING:
-   This script requires loadstring + HttpGet.
-   This will NOT run in standard Roblox Studio.
---]]
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
